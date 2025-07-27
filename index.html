@@ -75,61 +75,32 @@
             cursor: not-allowed;
         }
 
+        .stop-btn {
+            background: #ef4444;
+        }
+
+        .stop-btn:hover {
+            background: #dc2626;
+        }
+
         #qr-reader {
             width: 100%;
             border-radius: 10px;
             overflow: hidden;
             margin-bottom: 15px;
-        }
-
-        .form-section {
-            margin-bottom: 25px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: #374151;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
             border: 2px solid #e5e7eb;
+        }
+
+        /* Fix camera preview styling */
+        #qr-reader video {
+            width: 100% !important;
+            height: auto !important;
             border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
         }
 
-        input:focus {
-            outline: none;
-            border-color: #4f46e5;
-        }
-
-        .save-btn {
-            width: 100%;
-            padding: 15px;
-            background: #4f46e5;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .save-btn:hover {
-            background: #4338ca;
-        }
-
-        .save-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
+        #qr-reader canvas {
+            width: 100% !important;
+            height: auto !important;
         }
 
         .data-list {
@@ -150,7 +121,7 @@
             padding: 15px;
             margin-bottom: 10px;
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: center;
         }
 
@@ -232,9 +203,23 @@
 
         .scan-indicator {
             text-align: center;
-            color: #6b7280;
-            font-size: 14px;
-            margin-bottom: 10px;
+            color: #374151;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f3f4f6;
+            border-radius: 8px;
+        }
+
+        .camera-info {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-bottom: 15px;
         }
     </style>
 </head>
@@ -249,28 +234,19 @@
             <!-- Status Messages -->
             <div id="status" class="status hidden"></div>
 
+            <!-- Camera Info -->
+            <div class="camera-info">
+                📱 <strong>Note:</strong> This page requires HTTPS and camera permissions to work properly. Allow camera access when prompted.
+            </div>
+
             <!-- QR Scanner Section -->
             <div class="scan-section">
                 <button id="start-scan" class="scan-btn">Start QR Scanner</button>
-                <button id="stop-scan" class="scan-btn hidden">Stop Scanner</button>
+                <button id="stop-scan" class="scan-btn stop-btn hidden">Stop Scanner</button>
                 <div class="scan-indicator hidden" id="scan-indicator">
                     <p id="scan-step">Ready to scan Name (Step 1/2)</p>
                 </div>
                 <div id="qr-reader" class="hidden"></div>
-            </div>
-
-            <!-- Manual Entry Form -->
-            <div class="form-section">
-                <h3 style="color: #374151; margin-bottom: 15px;">Or Enter Manually:</h3>
-                <div class="form-group">
-                    <label for="name">Name:</label>
-                    <input type="text" id="name" placeholder="Enter name">
-                </div>
-                <div class="form-group">
-                    <label for="age">Age (1-100):</label>
-                    <input type="number" id="age" min="1" max="100" placeholder="Enter age">
-                </div>
-                <button id="save-data" class="save-btn">Save Data</button>
             </div>
 
             <!-- Data List -->
@@ -296,12 +272,22 @@
                 this.loadStoredData();
                 this.bindEvents();
                 this.updateUI();
+                this.checkCameraPermissions();
+            }
+
+            async checkCameraPermissions() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    stream.getTracks().forEach(track => track.stop());
+                    this.showStatus('Camera access available', 'success');
+                } catch (err) {
+                    this.showStatus('Camera access denied or unavailable. Please enable camera permissions.', 'error');
+                }
             }
 
             bindEvents() {
                 document.getElementById('start-scan').addEventListener('click', () => this.startScanning());
                 document.getElementById('stop-scan').addEventListener('click', () => this.stopScanning());
-                document.getElementById('save-data').addEventListener('click', () => this.saveManualData());
                 document.getElementById('clear-all').addEventListener('click', () => this.clearAllData());
             }
 
@@ -313,10 +299,10 @@
                 
                 setTimeout(() => {
                     statusEl.classList.add('hidden');
-                }, 3000);
+                }, 5000);
             }
 
-            startScanning() {
+            async startScanning() {
                 if (this.isScanning) return;
 
                 const startBtn = document.getElementById('start-scan');
@@ -324,34 +310,63 @@
                 const qrReader = document.getElementById('qr-reader');
                 const indicator = document.getElementById('scan-indicator');
 
-                this.html5QrcodeScanner = new Html5Qrcode("qr-reader");
-                
-                const config = {
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1.0
-                };
+                try {
+                    this.html5QrcodeScanner = new Html5Qrcode("qr-reader");
+                    
+                    const config = {
+                        fps: 10,
+                        qrbox: { width: 300, height: 300 },
+                        aspectRatio: 1.0,
+                        showTorchButtonIfSupported: true,
+                        showZoomSliderIfSupported: true,
+                        defaultZoomValueIfSupported: 1
+                    };
 
-                this.html5QrcodeScanner.start(
-                    { facingMode: "environment" },
-                    config,
-                    (decodedText, decodedResult) => {
-                        this.handleQRScan(decodedText);
-                    },
-                    (errorMessage) => {
-                        // Handle scan errors silently
+                    // Try different camera constraints
+                    const cameraConstraints = [
+                        { facingMode: "environment" }, // Rear camera first
+                        { facingMode: "user" }, // Front camera fallback
+                        true // Any available camera
+                    ];
+
+                    let started = false;
+                    for (const constraint of cameraConstraints) {
+                        try {
+                            await this.html5QrcodeScanner.start(
+                                constraint,
+                                config,
+                                (decodedText, decodedResult) => {
+                                    this.handleQRScan(decodedText);
+                                },
+                                (errorMessage) => {
+                                    // Handle scan errors silently
+                                }
+                            );
+                            started = true;
+                            break;
+                        } catch (err) {
+                            console.log(`Failed with constraint:`, constraint, err);
+                            continue;
+                        }
                     }
-                ).then(() => {
+
+                    if (!started) {
+                        throw new Error('No camera available');
+                    }
+
                     this.isScanning = true;
                     startBtn.classList.add('hidden');
                     stopBtn.classList.remove('hidden');
                     qrReader.classList.remove('hidden');
                     indicator.classList.remove('hidden');
                     this.updateScanStep();
-                }).catch(err => {
+                    this.showStatus('Scanner started successfully', 'success');
+
+                } catch (err) {
                     console.error('Error starting scanner:', err);
-                    this.showStatus('Camera access denied or not available', 'error');
-                });
+                    this.showStatus(`Camera error: ${err.message}. Try using HTTPS or check camera permissions.`, 'error');
+                    this.resetScanState();
+                }
             }
 
             stopScanning() {
@@ -364,6 +379,7 @@
                     this.showStatus('Scanner stopped', 'info');
                 }).catch(err => {
                     console.error('Error stopping scanner:', err);
+                    this.resetScanState();
                 });
             }
 
@@ -390,9 +406,9 @@
             updateScanStep() {
                 const stepEl = document.getElementById('scan-step');
                 if (this.scanStep === 1) {
-                    stepEl.textContent = 'Ready to scan Name (Step 1/2)';
+                    stepEl.textContent = '📷 Ready to scan Name (Step 1/2)';
                 } else {
-                    stepEl.textContent = 'Ready to scan Age (Step 2/2)';
+                    stepEl.textContent = '📷 Ready to scan Age (Step 2/2)';
                 }
             }
 
@@ -409,25 +425,6 @@
                 return !isNaN(age) && age >= 1 && age <= 100;
             }
 
-            saveManualData() {
-                const name = document.getElementById('name').value.trim();
-                const age = parseInt(document.getElementById('age').value);
-
-                if (!name) {
-                    this.showStatus('Please enter a name', 'error');
-                    return;
-                }
-
-                if (!this.validateAge(age)) {
-                    this.showStatus('Please enter a valid age (1-100)', 'error');
-                    return;
-                }
-
-                this.saveData(name, age);
-                document.getElementById('name').value = '';
-                document.getElementById('age').value = '';
-            }
-
             saveData(name, age) {
                 const data = this.getStoredData();
                 const newEntry = {
@@ -440,7 +437,7 @@
                 data.push(newEntry);
                 localStorage.setItem('qrData', JSON.stringify(data));
                 this.updateUI();
-                this.showStatus(`Data saved: ${name}, Age ${age}`, 'success');
+                this.showStatus(`✅ Data saved: ${name}, Age ${age}`, 'success');
             }
 
             getStoredData() {
@@ -449,7 +446,6 @@
             }
 
             loadStoredData() {
-                // This method ensures data is loaded from localStorage
                 return this.getStoredData();
             }
 
