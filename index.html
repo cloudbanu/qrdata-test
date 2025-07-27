@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Data Entry</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #4f46e5;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .scan-section {
+            margin-bottom: 25px;
+        }
+
+        .scan-btn {
+            width: 100%;
+            padding: 15px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+        }
+
+        .scan-btn:hover {
+            background: #059669;
+        }
+
+        .scan-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #qr-reader {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .form-section {
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 15px;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .save-btn:hover {
+            background: #4338ca;
+        }
+
+        .save-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .data-list {
+            margin-top: 25px;
+        }
+
+        .data-list h3 {
+            color: #374151;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .data-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .data-info {
+            flex: 1;
+        }
+
+        .data-name {
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 3px;
+        }
+
+        .data-age {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .delete-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .delete-btn:hover {
+            background: #dc2626;
+        }
+
+        .clear-all-btn {
+            width: 100%;
+            padding: 10px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .clear-all-btn:hover {
+            background: #dc2626;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .scan-indicator {
+            text-align: center;
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>QR Data Entry</h1>
+            <p>Scan QR codes to add Name & Age</p>
+        </div>
+
+        <div class="content">
+            <!-- Status Messages -->
+            <div id="status" class="status hidden"></div>
+
+            <!-- QR Scanner Section -->
+            <div class="scan-section">
+                <button id="start-scan" class="scan-btn">Start QR Scanner</button>
+                <button id="stop-scan" class="scan-btn hidden">Stop Scanner</button>
+                <div class="scan-indicator hidden" id="scan-indicator">
+                    <p id="scan-step">Ready to scan Name (Step 1/2)</p>
+                </div>
+                <div id="qr-reader" class="hidden"></div>
+            </div>
+
+            <!-- Manual Entry Form -->
+            <div class="form-section">
+                <h3 style="color: #374151; margin-bottom: 15px;">Or Enter Manually:</h3>
+                <div class="form-group">
+                    <label for="name">Name:</label>
+                    <input type="text" id="name" placeholder="Enter name">
+                </div>
+                <div class="form-group">
+                    <label for="age">Age (1-100):</label>
+                    <input type="number" id="age" min="1" max="100" placeholder="Enter age">
+                </div>
+                <button id="save-data" class="save-btn">Save Data</button>
+            </div>
+
+            <!-- Data List -->
+            <div class="data-list">
+                <h3>Stored Data (<span id="data-count">0</span>)</h3>
+                <div id="data-container"></div>
+                <button id="clear-all" class="clear-all-btn hidden">Clear All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class QRDataApp {
+            constructor() {
+                this.html5QrcodeScanner = null;
+                this.scanStep = 1; // 1 for name, 2 for age
+                this.tempName = '';
+                this.isScanning = false;
+                this.init();
+            }
+
+            init() {
+                this.loadStoredData();
+                this.bindEvents();
+                this.updateUI();
+            }
+
+            bindEvents() {
+                document.getElementById('start-scan').addEventListener('click', () => this.startScanning());
+                document.getElementById('stop-scan').addEventListener('click', () => this.stopScanning());
+                document.getElementById('save-data').addEventListener('click', () => this.saveManualData());
+                document.getElementById('clear-all').addEventListener('click', () => this.clearAllData());
+            }
+
+            showStatus(message, type = 'info') {
+                const statusEl = document.getElementById('status');
+                statusEl.textContent = message;
+                statusEl.className = `status ${type}`;
+                statusEl.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    statusEl.classList.add('hidden');
+                }, 3000);
+            }
+
+            startScanning() {
+                if (this.isScanning) return;
+
+                const startBtn = document.getElementById('start-scan');
+                const stopBtn = document.getElementById('stop-scan');
+                const qrReader = document.getElementById('qr-reader');
+                const indicator = document.getElementById('scan-indicator');
+
+                this.html5QrcodeScanner = new Html5Qrcode("qr-reader");
+                
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                };
+
+                this.html5QrcodeScanner.start(
+                    { facingMode: "environment" },
+                    config,
+                    (decodedText, decodedResult) => {
+                        this.handleQRScan(decodedText);
+                    },
+                    (errorMessage) => {
+                        // Handle scan errors silently
+                    }
+                ).then(() => {
+                    this.isScanning = true;
+                    startBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                    qrReader.classList.remove('hidden');
+                    indicator.classList.remove('hidden');
+                    this.updateScanStep();
+                }).catch(err => {
+                    console.error('Error starting scanner:', err);
+                    this.showStatus('Camera access denied or not available', 'error');
+                });
+            }
+
+            stopScanning() {
+                if (!this.isScanning || !this.html5QrcodeScanner) return;
+
+                this.html5QrcodeScanner.stop().then(() => {
+                    this.isScanning = false;
+                    this.resetScanState();
+                    this.updateUI();
+                    this.showStatus('Scanner stopped', 'info');
+                }).catch(err => {
+                    console.error('Error stopping scanner:', err);
+                });
+            }
+
+            handleQRScan(decodedText) {
+                if (this.scanStep === 1) {
+                    // First scan - Name
+                    this.tempName = decodedText.trim();
+                    this.scanStep = 2;
+                    this.updateScanStep();
+                    this.showStatus(`Name scanned: ${this.tempName}. Now scan age QR code.`, 'success');
+                } else if (this.scanStep === 2) {
+                    // Second scan - Age
+                    const age = parseInt(decodedText.trim());
+                    if (this.validateAge(age)) {
+                        this.saveData(this.tempName, age);
+                        this.resetScanState();
+                        this.stopScanning();
+                    } else {
+                        this.showStatus('Invalid age. Age must be between 1-100.', 'error');
+                    }
+                }
+            }
+
+            updateScanStep() {
+                const stepEl = document.getElementById('scan-step');
+                if (this.scanStep === 1) {
+                    stepEl.textContent = 'Ready to scan Name (Step 1/2)';
+                } else {
+                    stepEl.textContent = 'Ready to scan Age (Step 2/2)';
+                }
+            }
+
+            resetScanState() {
+                this.scanStep = 1;
+                this.tempName = '';
+                document.getElementById('start-scan').classList.remove('hidden');
+                document.getElementById('stop-scan').classList.add('hidden');
+                document.getElementById('qr-reader').classList.add('hidden');
+                document.getElementById('scan-indicator').classList.add('hidden');
+            }
+
+            validateAge(age) {
+                return !isNaN(age) && age >= 1 && age <= 100;
+            }
+
+            saveManualData() {
+                const name = document.getElementById('name').value.trim();
+                const age = parseInt(document.getElementById('age').value);
+
+                if (!name) {
+                    this.showStatus('Please enter a name', 'error');
+                    return;
+                }
+
+                if (!this.validateAge(age)) {
+                    this.showStatus('Please enter a valid age (1-100)', 'error');
+                    return;
+                }
+
+                this.saveData(name, age);
+                document.getElementById('name').value = '';
+                document.getElementById('age').value = '';
+            }
+
+            saveData(name, age) {
+                const data = this.getStoredData();
+                const newEntry = {
+                    id: Date.now(),
+                    name: name,
+                    age: age,
+                    timestamp: new Date().toLocaleString()
+                };
+
+                data.push(newEntry);
+                localStorage.setItem('qrData', JSON.stringify(data));
+                this.updateUI();
+                this.showStatus(`Data saved: ${name}, Age ${age}`, 'success');
+            }
+
+            getStoredData() {
+                const stored = localStorage.getItem('qrData');
+                return stored ? JSON.parse(stored) : [];
+            }
+
+            loadStoredData() {
+                // This method ensures data is loaded from localStorage
+                return this.getStoredData();
+            }
+
+            deleteEntry(id) {
+                const data = this.getStoredData();
+                const filteredData = data.filter(item => item.id !== id);
+                localStorage.setItem('qrData', JSON.stringify(filteredData));
+                this.updateUI();
+                this.showStatus('Entry deleted', 'info');
+            }
+
+            clearAllData() {
+                if (confirm('Are you sure you want to clear all data?')) {
+                    localStorage.removeItem('qrData');
+                    this.updateUI();
+                    this.showStatus('All data cleared', 'info');
+                }
+            }
+
+            updateUI() {
+                const data = this.getStoredData();
+                const container = document.getElementById('data-container');
+                const countEl = document.getElementById('data-count');
+                const clearBtn = document.getElementById('clear-all');
+
+                countEl.textContent = data.length;
+
+                if (data.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #6b7280; padding: 20px;">No data stored yet</p>';
+                    clearBtn.classList.add('hidden');
+                } else {
+                    container.innerHTML = data.map(item => `
+                        <div class="data-item">
+                            <div class="data-info">
+                                <div class="data-name">${item.name}</div>
+                                <div class="data-age">Age: ${item.age} • ${item.timestamp}</div>
+                            </div>
+                            <button class="delete-btn" onclick="app.deleteEntry(${item.id})">Delete</button>
+                        </div>
+                    `).join('');
+                    clearBtn.classList.remove('hidden');
+                }
+            }
+        }
+
+        // Initialize the app
+        const app = new QRDataApp();
+    </script>
+</body>
+</html>
